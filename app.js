@@ -3,9 +3,8 @@ const express = require('express');
 const app = express();
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const user = require('./models/user');
 const port = process.env.PORT || 3000;
-
-
 
 
 app.use(express.json());
@@ -19,3 +18,5 @@ mongoose.connect(process.env.MONGO_URI).then(() => {
   console.log('Error connecting to MongoDB');
   console.log(error);
 });
+
+app.use('/api/users', userRoutes);
