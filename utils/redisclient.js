@@ -1,6 +1,11 @@
 const Redis = require("ioredis");
+require('dotenv').config();
 
-const redis = new Redis(); 
+const redis = new Redis({
+  host: "localhost", 
+  port: 6379,        
+  retryStrategy: (times) => Math.min(times * 50, 2000), 
+});
 const cacheData = async (key, data, expiry = 86400) => {
   try {
     await redis.set(key, JSON.stringify(data), "EX", expiry);
