@@ -1,46 +1,39 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
 const User = require('../models/user');
 
 const signUp = async (req, res) => {
-  const { username, email, password, role } = req.body;
-
-  const validRoles = ['user', 'admin'];
-  if (!validRoles.includes(role)) {
-    return res.status(400).send('Invalid role');
-  }
-  
-  const user = new User({ username, email, password, role });
   try {
+    const { username, email, password, role } = req.body;
+
+    if (!User.isValidRole(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const user = new User({ username, email, password, role });
     await user.save();
-    res.status(201).json({message : 'User created successfully'});
+
+    res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
     console.error(error);
-    res.status(500).send('Error creating user');
+    res.status(500).json({ error: 'Error creating user' });
   }
-
-  const token = jwt.sign({ _id: user._id, role: user.role}, process.env.JWT_SECRET);
-  res.send({token});
 };
 
-const signIn = async (req, res) => {
-  const { email, password } = req.body;
+const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-  const user = await User.findOne({ email });
-  if (!user) {
-    return res.status(400).send('Invalid username or password');
-  };
+    const user = await User.findOne({ email });
+    if (!user || !(await user.isValidPassword(password))) {
+      return res.status(400).json({ error: 'Invalid username or password' });
+    }
 
-  const validPassword = await bcrypt.compare(password, user.password);
-  if (!validPassword) {
-    return res.status(400).send('Invalid username or password');
-  };
-
-  const token = jwt.sign({ _id: user._id, role: user.role}, process.env.JWT_SECRET);
-  res.send({token});
+    const token = jwt.sign({ _id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error logging in' });
+  }
 };
 
-module.exports = {
-  signUp,
-  signIn,
-};
+module.exports = { signUp, login };

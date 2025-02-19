@@ -1,17 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const {signUp, signIn } = require('../controllers/users');
-const auth = require('../middleware/auth');
+const { signUp, login } = require('../controllers/users'); 
+const { auth, checkRole } = require('../middleware/auth'); 
 
-// Sign-up route
 router.post('/signup', signUp);
 
-// Sign-in route
-router.post('/signin', signIn);
+router.post('/login', login);
 
-// Admin route, accessible only to admins
-router.get('/admin', auth('admin'), (req, res) => {
-  res.send('Welcome Admin');
+router.get('/admin', auth, checkRole('admin'), (req, res) => {
+  res.json({ message: 'Welcome, Admin' });
 });
 
 module.exports = router;

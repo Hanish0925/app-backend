@@ -1,38 +1,44 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET;
+const User = require('../models/user'); 
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-const auth = (roles = []) => {
-  if (typeof roles === 'string') {
-    roles = [roles];
-  }
-
-  return async (req, res, next) => {
+const auth = async (req, res, next) => {
     const authHeader = req.header('Authorization');
-    console.log('Authorization Header:', authHeader);
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('Authorization header missing or invalid');
-      return res.status(401).send('Access Denied. No token provided');
+        return res.status(401).json({ error: 'Access Denied. Please provide a valid token' });
     }
 
     const token = authHeader.split(' ')[1];
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      console.log('Decoded Token:', decoded);
-      req.user = decoded;
-
-      // Check if the user's role is authorized
-      if (roles.length && !roles.includes(req.user.role)) {
-        console.error('Access Denied. User does not have the required role');
-        return res.status(403).send('Access Denied. You do not have the required role');
-      }
-
-      next();
-    } catch (error) {
-      console.error('Token Verification Error:', error.message);
-      res.status(400).send('Invalid token');
+    if (!token) {
+        return res.status(401).json({ error: 'Access Denied. Invalid token' });
     }
-  };
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        if (!decoded._id) {
+            return res.status(400).json({ error: 'Invalid token structure: Missing user ID' });
+        }
+        const user = await User.findById(decoded._id);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        req.user = user;
+        next();
+    } catch (error) {
+        console.error("JWT Verification Error:", error.message);
+        return res.status(400).json({ error: 'Invalid token' });
+    }
 };
 
-module.exports = auth;
+const checkRole = (roles) => {
+    return (req, res, next) => {
+        if (!req.user || !roles.includes(req.user.role)) {
+            return res.status(403).json({ error: 'Access Denied. You do not have the required permissions.' });
+        }
+        next();
+    };
+};
+
+module.exports = { auth, checkRole };

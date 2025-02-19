@@ -1,17 +1,21 @@
 const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
-const bycrypt = require('bcrypt');
+const bcrypt = require('bcrypt');
 
-mongoose.userSchema = new mongoose.Schema({
+const validRoles = ['user', 'admin'];
+
+const userSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
     unique: true,
+    trim: true,
   },
-  email : {
+  email: {
     type: String,
+    required: true,
     unique: true,
-    sparse: true,
+    trim: true,
+    lowercase: true,
   },
   password: {
     type: String,
@@ -19,24 +23,28 @@ mongoose.userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
     required: true,
-    default: 'user',
+    enum: validRoles, 
+    default: 'user', 
   },
 });
 
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (this.isModified('password')) {
-    const salt = await bycrypt.genSalt(10);
-    this.password = await bycrypt.hash(this.password, salt);
+    this.password = await bcrypt.hash(this.password, 10);
   }
   next();
 });
 
-userSchema.methods.comparePassword = async function(password) {
-  return await bycrypt.compare(password, this.password);
+userSchema.methods.isValidPassword = async function (password) {
+  return await bcrypt.compare(password, this.password);
 };
 
-const user = mongoose.model('User', userSchema);
+userSchema.statics.isValidRole = function (role) {
+  return validRoles.includes(role);
+};
 
-module.exports = user;
+
+const User = mongoose.model('User', userSchema);
+
+module.exports = User;
